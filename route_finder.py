@@ -1,6 +1,15 @@
-import sys
+"""
+Makerere Campus Route Finder (CSC 2114 Practical 3)
+BFS and DFS share ONE generic search loop; they differ only in which end of
+the frontier a node is removed from. Every hop costs 1.
 
-# The undirected graph connections between Makerere University schools and landmarks[cite: 1, 2].
+Usage:
+    python route_finder.py              # interactive prompts
+    python route_finder.py --no-reached # tree-like search (reached table off)
+"""
+import sys
+from collections import deque
+
 EDGES = [
     ("Main Building", "Freedom Square"), ("Main Building", "Main Library"),
     ("Main Building", "School of Social Sciences"),
@@ -24,36 +33,32 @@ EDGES = [
     ("School of Economics", "School of Law"),
 ]
 
-# Build adjacency list graph
+# Adjacency list (undirected: each edge is stored in both directions).
 GRAPH = {}
-VALID_PLACES = set()
+for _u, _v in EDGES:
+    GRAPH.setdefault(_u, []).append(_v)
+    GRAPH.setdefault(_v, []).append(_u)
 
-for u, v in EDGES:
-    VALID_PLACES.add(u)
-    VALID_PLACES.add(v)
-    if u not in GRAPH: GRAPH[u] = []
-    if v not in GRAPH: GRAPH[v] = []
-    GRAPH[u].append(v)
-    GRAPH[v].append(u)
+# Lower-cased name -> official name, for case-insensitive matching.
+PLACES = {name.lower(): name for name in GRAPH}
 
-# Create a case-insensitive map for strict input matching requirements.
-PLACES_MAP = {place.lower(): place for place in VALID_PLACES}
+EXPANSION_CAP = 10_000
 
 
 class Node:
-    """A search node containing the required fields for the search tree."""
+    """Search-tree node with the four lecture fields."""
 
     def __init__(self, state, parent=None, action=None, path_cost=0):
-        self.state = state  # STATE
-        self.parent = parent  # PARENT
-        self.action = action  # ACTION
-        self.path_cost = path_cost  # PATH-COST
+        self.state = state          # STATE
+        self.parent = parent        # PARENT
+        self.action = action        # ACTION (the place we walked to)
+        self.path_cost = path_cost  # PATH-COST (hops so far)
 
 
 def solution(node):
-    """Traces parent pointers back to the root to assemble the ordered list of places."""
+    """Follow PARENT pointers back to the root; return places in order."""
     route = []
-    while node:
+    while node is not None:
         route.append(node.state)
         node = node.parent
     return route[::-1]
@@ -61,137 +66,102 @@ def solution(node):
 
 def search(source, destination, algorithm, use_reached=True):
     """
-    Generic search loop implementing BFS (queue/FIFO) and DFS (stack/LIFO)[cite: 3].
+    Generic search. Returns (route or None, nodes_expanded, hit_cap).
+    BFS: frontier is a queue, remove from the front.
+    DFS: frontier is a stack, remove from the back.
+    use_reached=False gives tree-like search (stopped by EXPANSION_CAP).
     """
-    initial_node = Node(state=source, path_cost=0)
-    frontier = [initial_node]
-
-    # Reached table mapping the state directly to the node[cite: 3].
-    reached = {source: initial_node} if use_reached else {}
-    nodes_expanded = 0
+    root = Node(source)
+    frontier = deque([root])
+    reached = {source: root} if use_reached else None
+    expanded = 0
 
     while frontier:
-        # Safety cap applied to terminate infinite loops during tree-like search evaluation[cite: 3].
-        if nodes_expanded >= 10000:
-            return None, nodes_expanded
+        # The ONLY difference between the two algorithms:
+        node = frontier.popleft() if algorithm == "BFS" else frontier.pop()
 
-        # Strategy selection for node removal from the frontier[cite: 3].
-        if algorithm == 'BFS':
-            node = frontier.pop(0)  # Removes from the front for BFS queue[cite: 3].
-        else:
-            node = frontier.pop()  # Removes from the back for DFS stack[cite: 3].
+        # Goal test when the node is removed from the frontier.
+        if node.state == destination:
+            return solution(node), expanded, False
 
-        # The goal test must be applied when the node is extracted from the frontier[cite: 3].
-        if node.state.lower() == destination.lower():
-            return solution(node), nodes_expanded
+        # Safety cap, checked before expanding another node.
+        if expanded >= EXPANSION_CAP:
+            return None, expanded, True
+        expanded += 1
 
-        # Count tracks nodes that fail the goal test and have their children generated[cite: 3].
-        nodes_expanded += 1
+        # Alphabetical order. A stack pops the last item pushed, so DFS pushes
+        # in reverse so the alphabetically first neighbour is explored first.
+        neighbours = sorted(GRAPH[node.state])
+        if algorithm == "DFS":
+            neighbours.reverse()
 
-        # Ensures deterministic execution by evaluating neighbors alphabetically[cite: 3].
-        neighbors = sorted(GRAPH.get(node.state, []))
-
-        # Pushing onto the LIFO stack in reverse alphabetical order ensures DFS explores the first alphabetical neighbor initially[cite: 3].
-        if algorithm == 'DFS':
-            neighbors.reverse()
-
-        for neighbor in neighbors:
-            # Each direct connection hop strictly costs 1[cite: 1, 6].
-            child = Node(
-                state=neighbor,
-                parent=node,
-                action=neighbor,
-                path_cost=node.path_cost + 1
-            )
-
+        for place in neighbours:
+            if use_reached and place in reached:
+                continue  # repeated state: skip it
+            child = Node(place, node, place, node.path_cost + 1)
             if use_reached:
-                if child.state not in reached or child.path_cost < reached[child.state].path_cost:
-                    reached[child.state] = child
-                    frontier.append(child)
-            else:
-                frontier.append(child)
+                reached[place] = child
+            frontier.append(child)
 
-    return None, nodes_expanded
+    return None, expanded, False
 
 
-import string
-import sys
+def find_place(text):
+    """Match a place name ignoring case and surrounding spaces."""
+    return PLACES.get(text.strip().lower())
 
 
-# [Insert previous EDGES, GRAPH, VALID_PLACES, Node class, solution(), and search() here]
+def show_places():
+    print("Valid places:")
+    for name in sorted(GRAPH):
+        print(f"  - {name}")
+
+
+def ask_place(prompt):
+    text = input(prompt)
+    place = find_place(text)
+    if place is None:
+        print(f'\nUnknown place: "{text.strip()}".')
+        show_places()
+    return place
+
 
 def main():
+    use_reached = "--no-reached" not in sys.argv[1:]
     print("Makerere Campus Route Finder")
     print("----------------------------")
-
-    # Sort places alphabetically and map them to uppercase letters (A, B, C, etc.)
-    sorted_places = sorted(VALID_PLACES)
-    letters = string.ascii_uppercase
-    place_menu = {letters[i]: place for i, place in enumerate(sorted_places)}
-
-    # Display the menu of places
-    print("\nAvailable Places:")
-    for letter, place in place_menu.items():
-        print(f"[{letter}] {place}")
+    show_places()
+    print()
 
     try:
-        # Prompt user to select letters instead of typing full names to prevent input errors.
-        source_letter = input("\nEnter the letter for the source: ").strip().upper()
-        if source_letter not in place_menu:
-            # Prevents crashes on unknown input and exits cleanly[cite: 4].
-            print("Error: Invalid selection. Please restart and choose a valid letter.")
+        source = ask_place("Source: ")
+        if source is None:
             return
-        source = place_menu[source_letter]
-
-        dest_letter = input("Enter the letter for the destination: ").strip().upper()
-        if dest_letter not in place_menu:
-            print("Error: Invalid selection. Please restart and choose a valid letter.")
-            return
-        destination = place_menu[dest_letter]
-
-        # Menu for algorithm selection
-        print("\nAvailable Algorithms:")
-        print("[A] BFS")
-        print("[B] DFS")
-        algo_letter = input("Select search algorithm (A or B): ").strip().upper()
-
-        if algo_letter == 'A':
-            algo_name = 'BFS'
-        elif algo_letter == 'B':
-            algo_name = 'DFS'
-        else:
-            print("Error: Invalid algorithm selection. Please choose A or B[cite: 4].")
+        destination = ask_place("Destination: ")
+        if destination is None:
             return
 
-        # Switch for the reached table (B4 requirement)[cite: 3].
-        use_reached_input = input("\nUse reached table for graph search? (Y/N): ").strip().upper()
-        use_reached = use_reached_input != 'N'
-
-        # If source equals destination, output a 1-place route with cost 0[cite: 4].
-        if source == destination:
-            route = [source]
-            cost = 0
-            expanded = 0
-        else:
-            route, expanded = search(source, destination, algo_name, use_reached)
-            cost = len(route) - 1 if route else 0
-
-        if route is None:
-            # Required output when the search exhausts the frontier without a solution[cite: 4].
-            print("\nNo route found.")
-        else:
-            # Output format matched exactly to the assignment specification[cite: 4].
-            print(f"\nAlgorithm: {algo_name}")
-            print(f"Route: {' -> '.join(route)}")
-            print(f"Cost (hops): {cost}")
-            print(f"Nodes expanded: {expanded}")
-
-            if expanded >= 10000:
-                print("\nWarning: Terminated at 10,000 expansions to prevent infinite loops[cite: 3].")
-
+        algorithm = input("Algorithm (BFS or DFS): ").strip().upper()
+        if algorithm not in ("BFS", "DFS"):
+            print(f'\nUnknown algorithm: "{algorithm}". Valid algorithms: BFS, DFS.')
+            return
     except (EOFError, KeyboardInterrupt):
         print("\nExiting.")
-        sys.exit(0)
+        return
+
+    route, expanded, hit_cap = search(source, destination, algorithm, use_reached)
+
+    if hit_cap:
+        print(f"\nWarning: stopped at the {EXPANSION_CAP:,}-expansion cap "
+              f"(reached table {'on' if use_reached else 'off'}).")
+    if route is None:
+        print("No route found.")
+        return
+
+    print(f"\nAlgorithm: {algorithm}")
+    print(f"Route: {' -> '.join(route)}")
+    print(f"Cost (hops): {len(route) - 1}")
+    print(f"Nodes expanded: {expanded}")
 
 
 if __name__ == "__main__":
