@@ -3,6 +3,8 @@ Makerere Campus Route Finder (CSC 2114 Practical 3)
 BFS and DFS share ONE generic search loop; they differ only in which end of
 the frontier a node is removed from. Every hop costs 1.
 
+Source and destination must be schools; landmarks are walk-through only.
+
 Usage:
     python route_finder.py              # interactive prompts
     python route_finder.py --no-reached # tree-like search (reached table off)
@@ -39,8 +41,14 @@ for _u, _v in EDGES:
     GRAPH.setdefault(_u, []).append(_v)
     GRAPH.setdefault(_v, []).append(_u)
 
-# Lower-cased name -> official name, for case-insensitive matching.
-PLACES = {name.lower(): name for name in GRAPH}
+# Landmarks can be walked through but are not schools, so they are never
+# valid sources or destinations. Only the 14 schools can be chosen.
+LANDMARKS = {"Main Building", "Freedom Square", "Main Library",
+             "Central Teaching Facility"}
+SCHOOLS = sorted(name for name in GRAPH if name not in LANDMARKS)
+
+# Lower-cased school name -> official name, for case-insensitive matching.
+PLACES = {name.lower(): name for name in SCHOOLS}
 
 EXPANSION_CAP = 10_000
 
@@ -112,8 +120,8 @@ def find_place(text):
 
 
 def show_places():
-    print("Valid places:")
-    for name in sorted(GRAPH):
+    print("Valid places (schools):")
+    for name in SCHOOLS:
         print(f"  - {name}")
 
 
