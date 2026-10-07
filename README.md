@@ -1,7 +1,6 @@
 # BSSE II Data Structures Project: LIFO & FIFO Implementation
 
-**Group:** [Group name]
-**Members:** [Names and registration numbers]
+**Group:** B2
 
 This submission contains two programs, one for each abstract data type (ADT). Both are written from scratch with no built-in Stack or Queue classes, and both are menu-driven: they keep showing a menu until the user chooses Exit.
 
