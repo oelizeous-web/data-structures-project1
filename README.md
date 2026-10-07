@@ -20,3 +20,4 @@ The internal data structure functions are cleanly separated from the `main()` ap
 
 ## 4. Application Execution & Proof of Logic
 *(Attach images left)*
+*(Remaining to attach screenshots of working program.)*
