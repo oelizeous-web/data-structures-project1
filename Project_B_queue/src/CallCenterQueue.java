@@ -9,13 +9,18 @@ public class CallCenterQueue {
         this.size = 0; //Track calls in the queue
     }
 
+    //checks whether any calls are waiting (an empty queue has no front node)
+    public boolean isEmpty(){
+        return this.front == null;
+    }
+
     //adding a new call to the queue at the back
     public void receiveCall(Call newCall){
         CallNode newNode = new CallNode(newCall);
-        if (this.rear == null) {
+        if (this.isEmpty()) {
 
             /*the front is the same as the back since its the first element being added
-            since the rear was empty */
+            since the queue was empty */
             this.front = this.rear = newNode;
         } else {
             this.rear.next = newNode;
@@ -25,8 +30,17 @@ public class CallCenterQueue {
         System.out.println("Received: " + newCall.callerName + " | Queue size: " + this.size);
     }
 
+    //view (peek at) the caller at the front WITHOUT removing them from the queue
+    public Call viewFront(){
+        if (this.isEmpty()) {
+            System.out.println("No calls in the queue.");
+            return null; //nothing to view
+        }
+        return this.front.call;
+    }
+
     public void answerCall(){
-        if (this.front == null) {
+        if (this.isEmpty()) {
             System.out.println("No calls in the queue.");
             return; //exit the method answerCall since none
         }
@@ -44,7 +58,7 @@ public class CallCenterQueue {
     }
 
     public void printFullQueue() {
-        if (this.front == null) {
+        if (this.isEmpty()) {
             System.out.println("The queue is currently empty.");
             return;
         }
