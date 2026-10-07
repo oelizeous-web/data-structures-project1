@@ -1,40 +1,36 @@
-# Greedy Traffic Signal Control (Intersection Timing)
+# Greedy Unit Fraction Decomposition (Egyptian Fractions)
 
-A Data Structures and Algorithms project that uses a **greedy algorithm** to decide which road gets the green light at a 4-way intersection, and for how long. It is written in both **Java** and **C**, and both versions behave the same way.
+A Data Structures and Algorithms project that uses a **greedy algorithm** to write a fraction as a sum of different **unit fractions**. It is written in both **Java** and **C**, and both versions behave the same way.
 
 ## The problem
 
-An intersection has four roads: **North, South, East and West**. Only one road can have a green light at a time. Each time the light has to change, the controller must answer two questions:
+A **unit fraction** has 1 on top, such as 1/2, 1/3 or 1/10. Any fraction smaller than 1 can be written as a sum of different unit fractions. For example:
 
-1. Which road should go next?
-2. How long should its green light last?
+```
+5/6 = 1/2 + 1/3
+```
+
+This is a purely computational problem (not a real-life simulation).
 
 ## The greedy idea
 
-Every time the light changes, the program looks at all four roads and picks the one that is **most urgent right now**. It never goes back and changes an earlier decision. That "best choice for now" step is what makes the algorithm greedy.
+At every step, take the **biggest unit fraction that still fits** inside what is left, then repeat with the leftover.
 
-**Urgency score of a road**
+For a fraction `n/d`:
 
-```
-score = cars waiting + (seconds since the road's last green / 5)
-```
+1. The biggest unit fraction not larger than `n/d` is `1/k`, where `k = d / n` rounded **up**.
+   Example: for 5/6, d/n = 6/5 = 1.2, so k = 2 and we take 1/2.
+2. The leftover is `n/d - 1/k = (n*k - d) / (d*k)`, simplified with the gcd (greatest common divisor).
+3. Repeat until the leftover is 0.
 
-- A long queue gives a high score, so busy roads are served first.
-- The waiting-time part slowly raises the score of a road that has not had a green for a while. This stops a quiet road from being ignored forever (starvation).
-
-**Green time**
-
-```
-green time = 2 seconds per waiting car
-             (never less than 10 seconds, never more than 60 seconds)
-```
+The numerator gets smaller at every step, so the loop always finishes.
 
 ## Files
 
 | File | Description |
 |------|-------------|
-| `ArrayTraffic.java` | Java version |
-| `ArrayTraffic.c` | C version |
+| `UnitFraction.java` | Java version |
+| `UnitFraction.c` | C version |
 | `README.md` | This file |
 
 ## How to run
@@ -42,88 +38,74 @@ green time = 2 seconds per waiting car
 **Java**
 
 ```
-javac ArrayTraffic.java
-java ArrayTraffic
+javac UnitFraction.java
+java UnitFraction
 ```
 
 **C**
 
 ```
-gcc ArrayTraffic.c -o ArrayTraffic
-./ArrayTraffic
+gcc UnitFraction.c -o UnitFraction
+./UnitFraction
 ```
 
-On Windows, run the C program with `ArrayTraffic.exe` after compiling.
+On Windows, run the C program with `UnitFraction.exe` after compiling.
 
 ## Input
 
-The program asks for the following. If you type something invalid, it asks again.
+The program asks for the following. If you type something invalid, it asks again. After each result it asks whether you want to decompose another fraction.
 
 | Question | Allowed values |
 |----------|----------------|
-| Cars waiting now (for each of the 4 roads) | 0 to 200 |
-| New cars per minute (for each of the 4 roads) | 0 to 30 |
-| How many green lights to simulate | 1 to 30 |
+| Numerator | 1 to 100 |
+| Denominator | 2 to 1,000,000 (must be bigger than the numerator, because the fraction must be less than 1) |
+| Decompose another fraction? | 1 = yes, 0 = no |
+
+The fraction is simplified first, so 4/8 is treated as 1/2.
 
 ## Sample run
 
-Input: North 20 cars (6 per minute), South 8 (4), East 35 (9), West 4 (2), and 12 green lights.
+Input: numerator 3, denominator 7.
 
 ```
-Light#  Time(s)  Road    Queue  Green(s)  Cars passed
-1       0        East    35     60        30
-2       63       North   26     52        26
-3       118      South   16     32        16
-4       153      East    27     54        27
-5       210      West    11     22        11
-6       235      North   19     38        19
-7       276      South   11     22        11
-8       301      East    23     46        23
-9       350      West    5      10        5
-10      363      North   13     26        13
-11      392      South   8      16        8
-12      411      East    16     32        16
+Decomposing 3/7:
+Step 1: 3/7  ->  take 1/3  ->  left over 2/21
+Step 2: 2/21  ->  take 1/11  ->  left over 1/231
+Step 3: 1/231  ->  take 1/231  ->  left over 0/1
 
-=== FINAL RESULTS (after 446 seconds) ===
-North: 58 cars passed, 9 still waiting
-South: 35 cars passed, 3 still waiting
-East: 96 cars passed, 5 still waiting
-West: 16 cars passed, 3 still waiting
-Total cars passed : 205
-Total still waiting: 20
+3/7 = 1/3 + 1/11 + 1/231
+Number of unit fractions used: 3
 ```
 
-East starts with the longest queue, so it gets the first (and longest) green. West is served only after its waiting time has raised its score.
+## Sample with the number limit
+
+Some fractions make the denominators grow very fast. For 5/121 the program stops safely instead of giving a wrong answer:
+
+```
+Step 1: 5/121  ->  take 1/25  ->  left over 4/3025
+Step 2: 4/3025  ->  take 1/757  ->  left over 3/2289925
+Step 3: 3/2289925  ->  take 1/763309  ->  left over 2/1747920361825
+
+5/121 = 1/25 + 1/757 + 1/763309 + 2/1747920361825
+(The next denominator is too large for the computer to store,
+ so the last part 2/1747920361825 could not be split further.)
+```
 
 ## How the program is organised
 
 | Part | What it does |
 |------|--------------|
-| `Road` (class in Java, struct in C) | Stores a road's name, cars waiting, arrival rate, waiting time and cars passed |
-| `score` | Calculates how urgent a road is |
-| `pickRoad` / `pick_road` | **The greedy choice:** finds the road with the highest score |
-| `greenTime` / `green_time` | Works out the green time for the chosen road |
-| `runGreenLight` / `run_green_light` | Lets cars pass, makes the other roads wait, and adds newly arriving cars |
+| `gcd` | Finds the greatest common divisor, used to simplify fractions |
 | `readNumber` / `read_number` | Reads a number safely and repeats the question if the input is wrong |
-
-## Settings you can change
-
-These constants are at the top of each source file:
-
-| Constant | Meaning | Default |
-|----------|---------|---------|
-| `SECONDS_PER_CAR` | Time for one car to pass | 2 |
-| `MIN_GREEN` | Shortest green light (seconds) | 10 |
-| `MAX_GREEN` | Longest green light (seconds) | 60 |
-| `YELLOW_TIME` | Time lost when the light changes (seconds) | 3 |
+| Greedy loop in `main` | Finds `k`, computes the leftover fraction, simplifies it and repeats |
+| Overflow check | Stops before a number becomes too big for the computer to store |
 
 ## Complexity
 
-Each decision checks 4 roads, so it takes O(n) time with n = 4. For R green lights the total is O(R x n), which is linear in the number of lights.
+Each step does one division, one multiplication and one gcd calculation. The number of steps is at most the starting numerator, which is why the numerator is limited to 100.
 
 ## Limitations
 
-- Greedy gives a good result, but it is a heuristic. It is not proven to be the best possible timing.
-- Only one road has green at a time. Real intersections often let opposite roads (for example North and South) go together.
-- New cars arrive at a steady rate, rounded to whole cars.
-- Cars take a fixed 2 seconds each to pass.
+- Greedy always finishes, but it does **not** always give the shortest answer or the smallest denominators.
+- Denominators can grow extremely fast. The program uses 64-bit numbers (`long` in Java, `long long` in C), so it stops when the next denominator would be too large and prints the part it could not split.
+- Only proper fractions (less than 1) are accepted.
