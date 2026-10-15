@@ -1,6 +1,6 @@
 import java.util.Scanner;
 
-public class ArrayDivideConquer {
+public class MultiplicationDivideConquer {
 
     static final int MAX_DIGITS = 128;   // must be >= 2 x digits of the largest input
     static final int BASE = 10;
