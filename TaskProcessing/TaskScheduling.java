@@ -1,3 +1,5 @@
+package TaskProcessing;
+
 import java.util.Scanner;
 
 public class TaskScheduling {
